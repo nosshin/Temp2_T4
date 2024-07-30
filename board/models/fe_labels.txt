@@ -1,0 +1,7 @@
+0 cat
+1 chipmunk
+2 deer
+3 dog
+4 fox
+5 frog
+6 rabbit

@@ -1,0 +1,7 @@
+0 bear
+1 dino
+2 dog
+3 horse
+4 monkey
+5 tiger
+6 wolf

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Page</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 20px;
+        }
+        #video, #generated-image {
+            width: 48%;
+            max-width: 100%;
+            margin: 0 10px; /* 간격을 주기 위해 좌우 마진 추가 */
+        }
+        .progress-container {
+            margin-top: 20px;
+            text-align: center;
+        }
+        #generated-image {
+            display: none; /* 초기에는 이미지를 숨김 */
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Page</h1>
+    <div>
+        <label for="age">Age:</label>
+        <input type="number" id="age" name="age">
+    </div>
+    <div>
+        <label for="gender">Gender:</label>
+        <select id="gender" name="gender">
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+        </select>
+    </div>
+    <div>
+        <button id="capture">Capture Photo</button>
+    </div>
+    <div class="progress-container">
+        <p>Progress: <span id="progress">0%</span></p>
+        <progress id="progress-bar" value="0" max="100"></progress>
+    </div>
+    <div>
+        <h2>Predicted Label: <span id="predicted-label">undefined</span></h2>
+    </div>
+    <div class="container">
+        <video id="video" width="640" height="480" autoplay></video>
+        <img id="generated-image" src="" alt="Generated Image">
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const video = document.getElementById('video');
+            const constraints = {
+                video: true
+            };
+
+            navigator.mediaDevices.getUserMedia(constraints)
+                .then((stream) => {
+                    video.srcObject = stream;
+                })
+                .catch((error) => {
+                    console.error('Error accessing media devices.', error);
+                });
+
+            document.getElementById('capture').addEventListener('click', async () => {
+                const age = document.getElementById('age').value;
+                const gender = document.getElementById('gender').value;
+                const imageBlob = await captureImage();
+
+                const formData = new FormData();
+                formData.append('age', age);
+                formData.append('gender', gender);
+                formData.append('image', imageBlob, 'capture.png');
+
+                // Progress bar update
+                const interval = setInterval(async () => {
+                    const progressResponse = await fetch('/progress');
+                    const progressData = await progressResponse.json();
+                    document.getElementById('progress').textContent = `${progressData.progress}%`;
+                    document.getElementById('progress-bar').value = progressData.progress;
+                }, 500);
+
+                const response = await fetch('/api/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                clearInterval(interval);
+
+                // 업데이트가 완료된 후 100%로 설정
+                document.getElementById('progress').textContent = `100%`;
+                document.getElementById('progress-bar').value = 100;
+
+                // 결과 업데이트
+                document.getElementById('predicted-label').textContent = result.predicted_label;
+                document.getElementById('generated-image').src = result.generated_image_url;
+                document.getElementById('generated-image').style.display = 'block'; // 이미지를 표시
+                document.getElementById('generated-image').style.width = video.videoWidth + 'px';
+                document.getElementById('generated-image').style.height = video.videoHeight + 'px';
+            });
+
+            async function captureImage() {
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const context = canvas.getContext('2d');
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                return new Promise((resolve) => {
+                    canvas.toBlob(resolve, 'image/png');
+                });
+            }
+        });
+    </script>
+</body>
+</html>
